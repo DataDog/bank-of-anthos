@@ -12,11 +12,228 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Prerequisites:
-#   kubectl create secret generic datadog-secret --from-literal=api-key=<YOUR_DD_API_KEY>
+# Prerequisites — create these secrets before applying:
 #
-# The datadog-config ConfigMap (DD_SITE, DD_ENV) is defined in config.yaml.
+#   kubectl create secret generic datadog-secret \
+#     --from-literal=api-key=<YOUR_DD_API_KEY>
+#
+#   kubectl create secret generic datadog-cluster-agent-token \
+#     --from-literal=token=$(python3 -c "import secrets; print(secrets.token_hex(32))")
+#
+# The datadog-config ConfigMap (DD_SITE, DD_ENV, DD_RUM_*) is in config.yaml.
+#
+# Single-Step APM Instrumentation is handled by the Cluster Agent Admission
+# Controller. Add the following annotation to any pod template to inject the
+# tracer automatically (no Dockerfile changes required):
+#
+#   Python:  admission.datadoghq.com/python-lib.version: "v3"
+#   Java:    admission.datadoghq.com/java-lib.version: "v1.60.3"
 
+# =============================================================================
+# CLUSTER AGENT — runs the Admission Controller for Single-Step Instrumentation
+# =============================================================================
+
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: datadog-cluster-agent
+  labels:
+    application: bank-of-anthos
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: datadog-cluster-agent
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - nodes
+      - namespaces
+      - services
+      - endpoints
+      - events
+      - componentstatuses
+      - persistentvolumes
+      - persistentvolumeclaims
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources:
+      - secrets
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+      - replicasets
+      - daemonsets
+      - statefulsets
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["batch"]
+    resources:
+      - jobs
+      - cronjobs
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["autoscaling"]
+    resources:
+      - horizontalpodautoscalers
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources:
+      - mutatingwebhookconfigurations
+      - validatingwebhookconfigurations
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - clusterroles
+      - clusterrolebindings
+      - roles
+      - rolebindings
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources:
+      - leases
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
+    verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: datadog-cluster-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: datadog-cluster-agent
+subjects:
+  - kind: ServiceAccount
+    name: datadog-cluster-agent
+    namespace: default
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-cluster-agent
+  labels:
+    application: bank-of-anthos
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datadog-cluster-agent
+  template:
+    metadata:
+      labels:
+        app: datadog-cluster-agent
+    spec:
+      serviceAccountName: datadog-cluster-agent
+      containers:
+        - name: cluster-agent
+          image: gcr.io/datadoghq/cluster-agent:7.77.3
+          env:
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: api-key
+            - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-cluster-agent-token
+                  key: token
+            - name: DD_SITE
+              valueFrom:
+                configMapKeyRef:
+                  name: datadog-config
+                  key: DD_SITE
+            - name: DD_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: datadog-config
+                  key: DD_ENV
+            - name: DD_COLLECT_KUBERNETES_EVENTS
+              value: "true"
+            - name: DD_LEADER_ELECTION
+              value: "true"
+            - name: DD_ADMISSION_CONTROLLER_ENABLED
+              value: "true"
+            - name: DD_ADMISSION_CONTROLLER_MUTATE_UNLABELLED
+              value: "false"
+            - name: DD_ADMISSION_CONTROLLER_SERVICE_NAME
+              value: "datadog-admission-controller"
+            - name: DD_ADMISSION_CONTROLLER_INJECT_CONFIG_MODE
+              value: "socket"
+          ports:
+            - containerPort: 5005
+              name: agentport
+              protocol: TCP
+            - containerPort: 8000
+              name: admission
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /live
+              port: 5005
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 5005
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 400m
+              memory: 512Mi
+---
+# Node agents connect to the Cluster Agent on this service
+apiVersion: v1
+kind: Service
+metadata:
+  name: datadog-cluster-agent
+  labels:
+    application: bank-of-anthos
+spec:
+  selector:
+    app: datadog-cluster-agent
+  ports:
+    - name: agentport
+      port: 5005
+      targetPort: 5005
+      protocol: TCP
+---
+# Admission Controller webhook endpoint (must be port 443)
+apiVersion: v1
+kind: Service
+metadata:
+  name: datadog-admission-controller
+  labels:
+    application: bank-of-anthos
+spec:
+  selector:
+    app: datadog-cluster-agent
+  ports:
+    - name: admission
+      port: 443
+      targetPort: 8000
+      protocol: TCP
+
+# =============================================================================
+# NODE AGENT — runs on every node, collects metrics, traces, and logs
+# =============================================================================
+
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -87,7 +304,7 @@ spec:
       serviceAccountName: datadog-agent
       containers:
         - name: datadog-agent
-          image: gcr.io/datadoghq/agent:7
+          image: gcr.io/datadoghq/agent:7.77.3
           env:
             - name: DD_API_KEY
               valueFrom:
@@ -110,6 +327,15 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            - name: DD_CLUSTER_AGENT_ENABLED
+              value: "true"
+            - name: DD_CLUSTER_AGENT_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-cluster-agent-token
+                  key: token
+            - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
+              value: "datadog-cluster-agent"
             - name: DD_APM_ENABLED
               value: "true"
             - name: DD_APM_NON_LOCAL_TRAFFIC
