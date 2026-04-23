@@ -94,6 +94,33 @@ spec:
                   key: DEMO_OAUTH_REDIRECT_URI
                   name: oauth-config
                   optional: true
+            - name: DD_AGENT_HOST
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_SERVICE
+              value: "frontend"
+            - name: DD_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: datadog-config
+                  key: DD_ENV
+            - name: DD_VERSION
+              value: "v0.6.9"
+            - name: DD_LOGS_INJECTION
+              value: "true"
+            - name: DD_RUM_APPLICATION_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: datadog-config
+                  key: DD_RUM_APPLICATION_ID
+                  optional: true
+            - name: DD_RUM_CLIENT_TOKEN
+              valueFrom:
+                configMapKeyRef:
+                  name: datadog-config
+                  key: DD_RUM_CLIENT_TOKEN
+                  optional: true
           envFrom:
             - configMapRef:
                 name: environment-config

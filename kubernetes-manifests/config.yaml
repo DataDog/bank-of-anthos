@@ -44,6 +44,18 @@ data:
   DEMO_LOGIN_PASSWORD: "bankofanthos"
 ---
 apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: datadog-config
+data:
+  DD_SITE: "datadoghq.com"
+  DD_ENV: "development"
+  # Set DD_RUM_APPLICATION_ID and DD_RUM_CLIENT_TOKEN to enable Browser RUM on the frontend.
+  # These values come from your Datadog RUM application (app.datadoghq.com > UX Monitoring > RUM Applications).
+  DD_RUM_APPLICATION_ID: ""
+  DD_RUM_CLIENT_TOKEN: ""
+---
+apiVersion: v1
 kind: ServiceAccount
 metadata:
   annotations:
