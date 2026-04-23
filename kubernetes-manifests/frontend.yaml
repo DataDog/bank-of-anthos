@@ -68,8 +68,6 @@ spec:
               value: v0.6.9
             - name: PORT
               value: "8080"
-            - name: ENABLE_TRACING
-              value: "true"
             - name: SCHEME
               value: http
             - name: LOG_LEVEL
