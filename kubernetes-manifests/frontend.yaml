@@ -55,16 +55,12 @@ spec:
     metadata:
       annotations:
         proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
-        admission.datadoghq.com/python-lib.version: "v3"
       labels:
         app: frontend
         application: bank-of-anthos
         environment: development
         team: frontend
         tier: web
-        tags.datadoghq.com/env: "development"
-        tags.datadoghq.com/service: "frontend"
-        tags.datadoghq.com/version: "v0.6.9"
     spec:
       containers:
         - env:
@@ -97,33 +93,6 @@ spec:
                 configMapKeyRef:
                   key: DEMO_OAUTH_REDIRECT_URI
                   name: oauth-config
-                  optional: true
-            - name: DD_AGENT_HOST
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.hostIP
-            - name: DD_SERVICE
-              value: "frontend"
-            - name: DD_ENV
-              valueFrom:
-                configMapKeyRef:
-                  name: datadog-config
-                  key: DD_ENV
-            - name: DD_VERSION
-              value: "v0.6.9"
-            - name: DD_LOGS_INJECTION
-              value: "true"
-            - name: DD_RUM_APPLICATION_ID
-              valueFrom:
-                configMapKeyRef:
-                  name: datadog-config
-                  key: DD_RUM_APPLICATION_ID
-                  optional: true
-            - name: DD_RUM_CLIENT_TOKEN
-              valueFrom:
-                configMapKeyRef:
-                  name: datadog-config
-                  key: DD_RUM_CLIENT_TOKEN
                   optional: true
           envFrom:
             - configMapRef:

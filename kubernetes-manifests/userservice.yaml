@@ -55,16 +55,12 @@ spec:
     metadata:
       annotations:
         proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
-        admission.datadoghq.com/python-lib.version: "v3"
       labels:
         app: userservice
         application: bank-of-anthos
         environment: development
         team: accounts
         tier: backend
-        tags.datadoghq.com/env: "development"
-        tags.datadoghq.com/service: "userservice"
-        tags.datadoghq.com/version: "v0.6.9"
     spec:
       containers:
         - env:
@@ -78,21 +74,6 @@ spec:
               value: /tmp/.ssh/privatekey
             - name: LOG_LEVEL
               value: info
-            - name: DD_AGENT_HOST
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.hostIP
-            - name: DD_SERVICE
-              value: "userservice"
-            - name: DD_ENV
-              valueFrom:
-                configMapKeyRef:
-                  name: datadog-config
-                  key: DD_ENV
-            - name: DD_VERSION
-              value: "v0.6.9"
-            - name: DD_LOGS_INJECTION
-              value: "true"
           envFrom:
             - configMapRef:
                 name: environment-config
