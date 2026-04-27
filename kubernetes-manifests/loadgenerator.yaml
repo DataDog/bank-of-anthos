@@ -40,7 +40,7 @@ spec:
         tier: test
         tags.datadoghq.com/env: dev-boa
         tags.datadoghq.com/service: loadgenerator
-        tags.datadoghq.com/version: v0.6.9
+        tags.datadoghq.com/version: v0.6.9-dd.1
         tags.datadoghq.com/team: loadgenerator
     spec:
       containers:
@@ -51,7 +51,7 @@ spec:
               value: "5"
             - name: LOG_LEVEL
               value: error
-          image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/loadgenerator:v0.6.9@sha256:a95600a753cad11b89ed53026ed49abefd830126b8574881659cc74cdc27d1a2
+          image: public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1
           name: loadgenerator
           resources:
             limits:

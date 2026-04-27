@@ -64,13 +64,13 @@ spec:
         tier: backend
         tags.datadoghq.com/env: dev-boa
         tags.datadoghq.com/service: ledgerwriter
-        tags.datadoghq.com/version: v0.6.9
+        tags.datadoghq.com/version: v0.6.9-dd.1
         tags.datadoghq.com/team: ledger
     spec:
       containers:
         - env:
             - name: VERSION
-              value: v0.6.9
+              value: v0.6.9-dd.1
             - name: PORT
               value: "8080"
             - name: JVM_OPTS
@@ -90,7 +90,7 @@ spec:
                 name: service-api-config
             - configMapRef:
                 name: ledger-db-config
-          image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/ledgerwriter:v0.6.9@sha256:72509132f868a3d592cb734a7bd410b1bf69d55d38c413279b18e8265f9d98f8
+          image: public.ecr.aws/v6x4t1k2/bank-of-anthos-ledgerwriter:v0.6.9-dd.1
           name: ledgerwriter
           readinessProbe:
             httpGet:

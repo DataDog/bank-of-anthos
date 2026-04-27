@@ -4,7 +4,7 @@ metadata:
   name: "datadog"
   namespace: "datadog"
   annotations:
-    agent.datadoghq.com/appsec.injector.enabled: "true"
+    agent.datadoghq.com/appsec.injector.processor.service.name: "datadog-agent"
 spec:
   global:
     clusterName: "bank-of-anthos"
@@ -26,6 +26,11 @@ spec:
     apm:
       instrumentation:
         enabled: true
+        disabledNamespaces:
+          - "datadog"
+          - "kube-node-lease"
+          - "kube-public"
+          - "kube-system"
         targets:
           - name: "java-services"
             podSelector:
@@ -42,6 +47,8 @@ spec:
               - name: "DD_PROFILING_ENABLED"
                 value: "auto"
               - name: "DD_DATA_STREAMS_ENABLED"
+                value: "true"
+              - name: "DD_LOGS_INJECTION"
                 value: "true"
               - name: "DD_RUM_ENABLED"
                 value: "true"
@@ -62,13 +69,14 @@ spec:
                     - frontend
                     - userservice
                     - contacts
-                    - loadgenerator
             ddTraceVersions:
               python: "4"
             ddTraceConfigs:
               - name: "DD_PROFILING_ENABLED"
                 value: "auto"
               - name: "DD_DATA_STREAMS_ENABLED"
+                value: "true"
+              - name: "DD_LOGS_INJECTION"
                 value: "true"
               - name: "DD_RUM_ENABLED"
                 value: "true"

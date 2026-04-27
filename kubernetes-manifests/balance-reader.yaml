@@ -64,13 +64,13 @@ spec:
         tier: backend
         tags.datadoghq.com/env: dev-boa
         tags.datadoghq.com/service: balancereader
-        tags.datadoghq.com/version: v0.6.9
+        tags.datadoghq.com/version: v0.6.9-dd.1
         tags.datadoghq.com/team: ledger
     spec:
       containers:
         - env:
             - name: VERSION
-              value: v0.6.9
+              value: v0.6.9-dd.1
             - name: PORT
               value: "8080"
             - name: POLL_MS
@@ -92,7 +92,7 @@ spec:
                 name: environment-config
             - configMapRef:
                 name: ledger-db-config
-          image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/balancereader:v0.6.9@sha256:6e4b48918d624f17653f230b53bbddf6c23da45606a89297d2eec72a46c830f9
+          image: public.ecr.aws/v6x4t1k2/bank-of-anthos-balancereader:v0.6.9-dd.1
           livenessProbe:
             httpGet:
               path: /healthy

@@ -148,3 +148,34 @@ The following button opens up an interactive tutorial showing how to deploy Bank
 - [Architecture: Creating and deploying secured applications](https://cloud.google.com/architecture/security-foundations/creating-deploying-secured-apps)
 - [Keynote @ Google Cloud Next '20: Building trust for speedy innovation](https://www.youtube.com/watch?v=7QR1z35h_yc)
 - [Workshop @ IstioCon '22: Manage and secure distributed services with ASM](https://www.youtube.com/watch?v=--mPdAxovfE)
+
+
+## Rebuild to Public ECR
+#Java (JIB — builds and pushes in one step):
+
+cd src/ledger/balancereader
+mvn jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-balancereader:v0.6.9-dd.1
+
+cd ../ledgerwriter
+mvn jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-ledgerwriter:v0.6.9-dd.1
+
+cd ../transactionhistory
+mvn jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-transactionhistory:v0.6.9-dd.1
+cd ../../..
+Python (Docker build + push):
+
+
+# Authenticate to ECR Public first (only needed once per session)
+aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-frontend:v0.6.9-dd.1 src/frontend/
+docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-frontend:v0.6.9-dd.1
+
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-contacts:v0.6.9-dd.1 src/accounts/contacts/
+docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-contacts:v0.6.9-dd.1
+
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-userservice:v0.6.9-dd.1 src/accounts/userservice/
+docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-userservice:v0.6.9-dd.1
+
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1 src/loadgenerator/
+docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1

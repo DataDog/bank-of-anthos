@@ -64,13 +64,13 @@ spec:
         tier: backend
         tags.datadoghq.com/env: dev-boa
         tags.datadoghq.com/service: contacts
-        tags.datadoghq.com/version: v0.6.9
+        tags.datadoghq.com/version: v0.6.9-dd.1
         tags.datadoghq.com/team: accounts
     spec:
       containers:
         - env:
             - name: VERSION
-              value: v0.6.9
+              value: v0.6.9-dd.1
             - name: PORT
               value: "8080"
             - name: LOG_LEVEL
@@ -80,7 +80,7 @@ spec:
                 name: environment-config
             - configMapRef:
                 name: accounts-db-config
-          image: us-central1-docker.pkg.dev/bank-of-anthos-ci/bank-of-anthos/contacts:v0.6.9@sha256:986fda4ca6779ef6f2a98c43c38beb1959118d3001ebb138f3dcb0a274b6a68e
+          image: public.ecr.aws/v6x4t1k2/bank-of-anthos-contacts:v0.6.9-dd.1
           name: contacts
           readinessProbe:
             httpGet:
