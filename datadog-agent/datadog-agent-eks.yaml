@@ -1,0 +1,114 @@
+kind: "DatadogAgent"
+apiVersion: "datadoghq.com/v2alpha1"
+metadata:
+  name: "datadog"
+  namespace: "datadog"
+  annotations:
+    agent.datadoghq.com/appsec.injector.enabled: "true"
+spec:
+  global:
+    clusterName: "bank-of-anthos"
+    site: "datadoghq.com"
+    credentials:
+      apiSecret:
+        secretName: "datadog-secret"
+        keyName: "api-key"
+      appSecret:
+        secretName: "datadog-secret"
+        keyName: "app-key"
+    tags:
+      - "env:dev-boa"
+  features:
+    clusterChecks:
+      enabled: true
+    orchestratorExplorer:
+      enabled: true
+    apm:
+      instrumentation:
+        enabled: true
+        targets:
+          - name: "java-services"
+            podSelector:
+              matchExpressions:
+                - key: tags.datadoghq.com/service
+                  operator: In
+                  values:
+                    - balancereader
+                    - ledgerwriter
+                    - transactionhistory
+            ddTraceVersions:
+              java: "1"
+            ddTraceConfigs:
+              - name: "DD_PROFILING_ENABLED"
+                value: "auto"
+              - name: "DD_DATA_STREAMS_ENABLED"
+                value: "true"
+              - name: "DD_RUM_ENABLED"
+                value: "true"
+              - name: "DD_RUM_APPLICATION_ID"
+                value: "7b820df0-949d-445c-8e88-8c96c9e69c42"
+              - name: "DD_RUM_CLIENT_TOKEN"
+                value: "pub2899582c6888a26c424cce8dae63ecff"
+              - name: "DD_RUM_REMOTE_CONFIGURATION_ID"
+                value: "dd580c32-1e07-46f7-b532-2f0b778c6b33"
+              - name: "DD_RUM_SITE"
+                value: "datadoghq.com"
+          - name: "python-services"
+            podSelector:
+              matchExpressions:
+                - key: tags.datadoghq.com/service
+                  operator: In
+                  values:
+                    - frontend
+                    - userservice
+                    - contacts
+                    - loadgenerator
+            ddTraceVersions:
+              python: "4"
+            ddTraceConfigs:
+              - name: "DD_PROFILING_ENABLED"
+                value: "auto"
+              - name: "DD_DATA_STREAMS_ENABLED"
+                value: "true"
+              - name: "DD_RUM_ENABLED"
+                value: "true"
+              - name: "DD_RUM_APPLICATION_ID"
+                value: "7b820df0-949d-445c-8e88-8c96c9e69c42"
+              - name: "DD_RUM_CLIENT_TOKEN"
+                value: "pub2899582c6888a26c424cce8dae63ecff"
+              - name: "DD_RUM_REMOTE_CONFIGURATION_ID"
+                value: "dd580c32-1e07-46f7-b532-2f0b778c6b33"
+              - name: "DD_RUM_SITE"
+                value: "datadoghq.com"
+    logCollection:
+      enabled: true
+      containerCollectAll: true
+      autoMultiLineDetection: true
+    asm:
+      threats:
+        enabled: true
+      sca:
+        enabled: true
+      iast:
+        enabled: true
+    cws:
+      enabled: true
+    cspm:
+      enabled: true
+    sbom:
+      enabled: true
+      containerImage:
+        enabled: true
+      host:
+        enabled: true
+    usm:
+      enabled: true
+    npm:
+      enabled: true
+    liveProcessCollection:
+      enabled: true
+    autoscaling:
+      workload:
+        enabled: true
+    eventCollection:
+      unbundleEvents: true

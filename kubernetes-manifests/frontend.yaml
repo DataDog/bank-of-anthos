@@ -55,12 +55,17 @@ spec:
     metadata:
       annotations:
         proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
+        ad.datadoghq.com/front.logs: '[{"source": "python"}]'
       labels:
         app: frontend
         application: bank-of-anthos
         environment: development
         team: frontend
         tier: web
+        tags.datadoghq.com/env: dev-boa
+        tags.datadoghq.com/service: frontend
+        tags.datadoghq.com/version: v0.6.9
+        tags.datadoghq.com/team: frontend
     spec:
       containers:
         - env:
@@ -118,10 +123,10 @@ spec:
           resources:
             limits:
               cpu: 250m
-              memory: 128Mi
+              memory: 256Mi
             requests:
               cpu: 100m
-              memory: 64Mi
+              memory: 128Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

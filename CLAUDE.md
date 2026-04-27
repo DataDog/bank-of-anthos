@@ -2,7 +2,7 @@
 
 ## What this repo is
 
-Bank of Anthos is a sample HTTP-based web banking app used as a Datadog APM/RUM instrumentation demo. It runs on GKE. The app is already deployed and accessible via the LoadBalancer IP of the `frontend` service:
+Bank of Anthos is a sample HTTP-based web banking app used as a Datadog APM/RUM instrumentation demo. It runs on Kubernetes (Docker Desktop locally, GKE in production). The app is already deployed and accessible via the LoadBalancer IP of the `frontend` service:
 
 ```sh
 kubectl get service frontend | awk '{print $4}'
@@ -27,84 +27,92 @@ Java services are built with JIB (no Dockerfiles). Python services use multi-sta
 
 ## Datadog instrumentation
 
-### APM — Single-Step Instrumentation via Admission Controller
+Instrumentation is managed by the **Datadog Operator** using a `DatadogAgent` custom resource. No changes to application Dockerfiles or `kubernetes-manifests/` service manifests are required.
 
-APM is instrumented with zero Dockerfile changes. The Datadog Cluster Agent's Admission Controller injects the tracer library automatically at pod startup based on pod template annotations.
+### Deployed resources
 
-**Deployed resources:** `kubernetes-manifests/datadog-agent.yaml`
-- Datadog Cluster Agent (Deployment) — `gcr.io/datadoghq/cluster-agent:7.77.3` — runs the Admission Controller
-- Datadog Node Agent (DaemonSet) — `gcr.io/datadoghq/agent:7.77.3` — collects metrics, traces, logs
-- RBAC (ServiceAccounts, ClusterRoles, ClusterRoleBindings) for both
-- Services: `datadog-cluster-agent` (port 5005) and `datadog-admission-controller` (port 443→8000)
+**File:** `datadog-agent/datadog-agent.yaml` — `DatadogAgent` CR (API: `datadoghq.com/v2alpha1`)
+**Namespace:** `datadog`
 
-**Library versions pinned in pod template annotations (per service manifest):**
-- Python services: `admission.datadoghq.com/python-lib.version: "v3"` (dd-trace-py v3)
-- Java services: `admission.datadoghq.com/java-lib.version: "v1.60.3"`
+### Deploying the Datadog Operator and agent
 
-**Unified Service Tagging** is applied via pod template labels on all services:
-```yaml
-tags.datadoghq.com/env: "development"
-tags.datadoghq.com/service: "<service-name>"
-tags.datadoghq.com/version: "v0.6.9"
+```sh
+# 1. Install the Datadog Operator via Helm
+helm repo add datadog https://helm.datadoghq.com
+helm install datadog-operator datadog/datadog-operator \
+  --namespace datadog --create-namespace
+
+# 2. Create the API key secret (app-key is not required)
+kubectl create secret generic datadog-secret \
+  --from-literal api-key=<DD_API_KEY> \
+  -n datadog
+
+# 3. Apply the DatadogAgent CR
+kubectl apply -f datadog-agent/datadog-agent.yaml
+
+# Check status
+kubectl get pods -n datadog
+kubectl get datadogagent -n datadog
 ```
 
-`DD_SERVICE`, `DD_ENV`, `DD_VERSION`, `DD_AGENT_HOST`, and `DD_LOGS_INJECTION` are also set as explicit env vars on every service container so the tracers pick them up.
+### APM — Single-Step Instrumentation
+
+APM is enabled via `spec.features.apm.instrumentation` in the DatadogAgent CR — the Cluster Agent's Admission Controller injects the tracer at pod creation time with zero Dockerfile changes.
+
+**Tracer versions (pinned in `datadog-agent/datadog-agent.yaml`):**
+- Java: `v1`
+- Python: `v4`
+- .NET: `v3`
+
+**Additional trace configs injected into all pods:**
+- `DD_PROFILING_ENABLED: auto`
+- `DD_DATA_STREAMS_ENABLED: true`
 
 ### RUM — Browser SDK
 
-RUM is injected into `src/frontend/templates/shared/html_head.html` (the shared `<head>` included on every page). It renders conditionally — only when `DD_RUM_APPLICATION_ID` and `DD_RUM_CLIENT_TOKEN` are both non-empty. SDK version: v6 (CDN).
+RUM is configured directly in the DatadogAgent CR under `spec.features.apm.instrumentation.targets[].ddTraceConfigs`. The following env vars are injected into all instrumented pods:
 
-To enable RUM, edit the `datadog-config` ConfigMap:
-```sh
-kubectl edit configmap datadog-config
-# set DD_RUM_APPLICATION_ID and DD_RUM_CLIENT_TOKEN
-# values come from app.datadoghq.com > UX Monitoring > RUM Applications
-```
+- `DD_RUM_ENABLED: true`
+- `DD_RUM_APPLICATION_ID: 8bc3f97c-a1fa-430e-82c7-171c0835f30c`
+- `DD_RUM_CLIENT_TOKEN: pub4b41d998d78af38daebbb62d178815fb`
+- `DD_RUM_REMOTE_CONFIGURATION_ID: 40040aad-de74-4384-aff1-5b8614f865e1`
+- `DD_RUM_SITE: datadoghq.com`
 
-`frontend.py` reads these env vars and exposes them as global Jinja2 template variables (`dd_rum_application_id`, `dd_rum_client_token`, `dd_env`, `version`).
+To update RUM credentials, edit `datadog-agent/datadog-agent.yaml` and re-apply.
 
-### Shared config
+### Other features enabled
 
-`kubernetes-manifests/config.yaml` contains the `datadog-config` ConfigMap:
-- `DD_SITE` — `datadoghq.com`
-- `DD_ENV` — `development`
-- `DD_RUM_APPLICATION_ID` — set to enable RUM
-- `DD_RUM_CLIENT_TOKEN` — set to enable RUM
+| Feature | Config key |
+|---|---|
+| Log collection (all containers) | `logCollection.enabled` |
+| App Security (threats, SCA, IAST) | `asm.*` |
+| Cloud Workload Security | `cws.enabled` |
+| Cloud Security Posture Mgmt | `cspm.enabled` |
+| SBOM (container images + host) | `sbom.*` |
+| Universal Service Monitoring | `usm.enabled` |
+| Network Performance Monitoring | `npm.enabled` |
+| Live Process Collection | `liveProcessCollection.enabled` |
+| Workload Autoscaling | `autoscaling.workload.enabled` |
+| AppSec injector | annotation `agent.datadoghq.com/appsec.injector.enabled: "true"` |
 
-## Secrets required in the cluster
+## Cluster name
 
-```sh
-# Datadog API key (already set via $DD_API_KEY env var)
-kubectl create secret generic datadog-secret \
-  --from-literal=api-key=$DD_API_KEY
+The `spec.global.clusterName` in `datadog-agent/datadog-agent.yaml` is currently set to `"your-cluster-name-here"` — update this to the actual cluster name before deploying to production.
 
-# Shared auth token between Cluster Agent and Node Agents (32+ chars)
-kubectl create secret generic datadog-cluster-agent-token \
-  --from-literal=token=$(python3 -c "import secrets; print(secrets.token_hex(32))")
-```
-
-## Applying changes
+## Checking agent status
 
 ```sh
-kubectl apply -f kubernetes-manifests/datadog-agent.yaml
-kubectl apply -f kubernetes-manifests/config.yaml
-kubectl apply -f kubernetes-manifests/   # applies all service manifests
-```
+kubectl get pods -n datadog          # all Datadog pods
+kubectl get datadogagent -n datadog  # operator-managed CR status
 
-If the Datadog Agent DaemonSet or Cluster Agent Deployment already exist with a different `spec.selector` (e.g. from a prior Helm/Operator install), you must delete and recreate them — `spec.selector` is immutable:
-
-```sh
-# If previously managed by the Datadog Operator:
-kubectl delete datadogagent datadog -n default
-helm uninstall datadog-operator -n default
-
-# Then re-apply
-kubectl apply -f kubernetes-manifests/datadog-agent.yaml
+# Logs
+kubectl logs -n datadog -l app.kubernetes.io/component=agent -c agent --tail=50
+kubectl logs -n datadog -l app.kubernetes.io/component=cluster-agent --tail=50
 ```
 
 ## Local dev
 
-The app requires a GKE cluster — it is not designed to run fully locally. For development, use Skaffold:
+The app requires a Kubernetes cluster. For local iteration, Docker Desktop Kubernetes works. For production, use GKE and Skaffold:
 
 ```sh
 skaffold dev --profile development \

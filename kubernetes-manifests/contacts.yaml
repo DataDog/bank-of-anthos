@@ -55,12 +55,17 @@ spec:
     metadata:
       annotations:
         proxy.istio.io/config: '{ "holdApplicationUntilProxyStarts": true }'
+        ad.datadoghq.com/contacts.logs: '[{"source": "python"}]'
       labels:
         app: contacts
         application: bank-of-anthos
         environment: development
         team: accounts
         tier: backend
+        tags.datadoghq.com/env: dev-boa
+        tags.datadoghq.com/service: contacts
+        tags.datadoghq.com/version: v0.6.9
+        tags.datadoghq.com/team: accounts
     spec:
       containers:
         - env:
@@ -88,11 +93,11 @@ spec:
             limits:
               cpu: 250m
               ephemeral-storage: 0.25Gi
-              memory: 128Mi
+              memory: 256Mi
             requests:
               cpu: 100m
               ephemeral-storage: 0.25Gi
-              memory: 64Mi
+              memory: 128Mi
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

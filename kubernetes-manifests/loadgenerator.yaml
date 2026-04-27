@@ -32,11 +32,16 @@ spec:
     metadata:
       annotations:
         sidecar.istio.io/rewriteAppHTTPProbers: "true"
+        ad.datadoghq.com/loadgenerator.logs: '[{"source": "python"}]'
       labels:
         app: loadgenerator
         environment: development
         team: loadgenerator
         tier: test
+        tags.datadoghq.com/env: dev-boa
+        tags.datadoghq.com/service: loadgenerator
+        tags.datadoghq.com/version: v0.6.9
+        tags.datadoghq.com/team: loadgenerator
     spec:
       containers:
         - env:
