@@ -19,6 +19,8 @@ metadata:
 data:
   LOCAL_ROUTING_NUM: "883745000"
   PUB_KEY_PATH: "/tmp/.ssh/publickey"
+  ENABLE_TRACING: "false"
+  ENABLE_METRICS: "false"
 ---
 apiVersion: v1
 kind: ConfigMap

@@ -19,7 +19,7 @@
     <Appenders>
         <Console name="console" target="SYSTEM_OUT">
             <PatternLayout
-              pattern='{"timestamp": "%d{yyyy-MM-dd HH:mm:ss}", "message": "%M | %msg", "severity": "%level"}%n' />
+              pattern='{"timestamp": "%d{yyyy-MM-dd HH:mm:ss}", "message": "%M | %msg", "severity": "%level", "dd.trace_id": "%X{dd.trace_id}", "dd.span_id": "%X{dd.span_id}", "dd.service": "%X{dd.service}", "dd.env": "%X{dd.env}", "dd.version": "%X{dd.version}"}%n' />
         </Console>
     </Appenders>
     <Loggers>
