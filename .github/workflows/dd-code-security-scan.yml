@@ -1,0 +1,78 @@
+name: Datadog Code Security Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      dd_api_key:
+        description: 'Target org API key'
+        required: true
+      dd_app_key:
+        description: 'Target org App key'
+        required: true
+      dd_site:
+        description: 'Datadog site'
+        required: false
+        default: 'datadoghq.com'
+
+jobs:
+  sca:
+    runs-on: ubuntu-latest
+    name: SCA — SBOM Generation and Upload
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Mask keys
+        run: |
+          echo "::add-mask::${{ inputs.dd_api_key }}"
+          echo "::add-mask::${{ inputs.dd_app_key }}"
+
+      - name: Check imported libraries are secure and compliant
+        uses: DataDog/datadog-sca-github-action@a913b0089df4f91a6fc2ebd50e93efe97a2980b2 # main
+        with:
+          dd_api_key: ${{ inputs.dd_api_key }}
+          dd_app_key: ${{ inputs.dd_app_key }}
+          dd_site: ${{ inputs.dd_site }}
+
+  static-analysis:
+    runs-on: ubuntu-latest
+    name: SAST and Secret Scanning
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Mask keys
+        run: |
+          echo "::add-mask::${{ inputs.dd_api_key }}"
+          echo "::add-mask::${{ inputs.dd_app_key }}"
+
+      - name: Check code meets quality and security standards
+        uses: DataDog/datadog-static-analyzer-github-action@8340f18875fcefca86844b5f947ce2431387e552 # v3.0.0
+        with:
+          dd_api_key: ${{ inputs.dd_api_key }}
+          dd_app_key: ${{ inputs.dd_app_key }}
+          dd_site: ${{ inputs.dd_site }}
+          static_analysis_enabled: true
+          secrets_enabled: true
+          cpu_count: 2
+
+  iac:
+    runs-on: ubuntu-latest
+    name: IaC Scan
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Mask keys
+        run: |
+          echo "::add-mask::${{ inputs.dd_api_key }}"
+          echo "::add-mask::${{ inputs.dd_app_key }}"
+
+      - name: Scan IaC files
+        uses: DataDog/datadog-iac-scanner-github-action@69c436fe0c600efcffbad684ad032cbd0ce80aa9 # v1.0.2
+        with:
+          dd_api_key: ${{ inputs.dd_api_key }}
+          dd_app_key: ${{ inputs.dd_app_key }}
+          dd_site: ${{ inputs.dd_site }}
