@@ -20,7 +20,7 @@ jobs:
     name: Datadog SBOM Generation and Upload
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Mask keys
         run: |
@@ -28,7 +28,7 @@ jobs:
           echo "::add-mask::${{ inputs.dd_app_key }}"
 
       - name: Check imported libraries are secure and compliant
-        uses: DataDog/datadog-sca-github-action@main
+        uses: DataDog/datadog-sca-github-action@a913b0089df4f91a6fc2ebd50e93efe97a2980b2
         with:
           dd_api_key: ${{ inputs.dd_api_key }}
           dd_app_key: ${{ inputs.dd_app_key }}
