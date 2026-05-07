@@ -139,6 +139,10 @@ The following button opens up an interactive tutorial showing how to deploy Bank
 - [CI/CD pipeline](/docs/ci-cd-pipeline.md) to learn details about and how to set-up the CI/CD pipeline.
 - [Troubleshooting](/docs/troubleshooting.md) to learn how to resolve common problems.
 
+## Injectable Fault Docs
+
+Several services include injectable faults to demonstrate Datadog observability capabilities (high memory usage, latency, errors, etc.). Each service that supports faults documents them in a `FAULTS.md` file alongside its `README.md`. All faults are disabled by default and activated via environment variables.
+
 ## Demos featuring Bank of Anthos
 - [Tutorial: Explore Anthos (Google Cloud docs)](https://cloud.google.com/anthos/docs/tutorials/explore-anthos)
 - [Tutorial: Migrating a monolith VM to GKE](https://cloud.google.com/migrate/containers/docs/migrating-monolith-vm-overview-setup)
