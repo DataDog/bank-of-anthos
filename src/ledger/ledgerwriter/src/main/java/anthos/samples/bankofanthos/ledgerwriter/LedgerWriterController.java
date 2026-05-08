@@ -58,6 +58,9 @@ public final class LedgerWriterController {
     private TransactionValidator transactionValidator;
     private JWTVerifier verifier;
 
+    @Autowired
+    private LatencyFault latencyFault;
+
     private String localRoutingNum;
     private String balancesApiUri;
     private String version;
@@ -134,6 +137,7 @@ public final class LedgerWriterController {
     public ResponseEntity<?> addTransaction(
             @RequestHeader("Authorization") String bearerToken,
             @RequestBody Transaction transaction) {
+        latencyFault.apply();
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             bearerToken = bearerToken.split("Bearer ")[1];
         }

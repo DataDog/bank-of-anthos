@@ -48,6 +48,9 @@ public final class BalanceReaderController {
     @Autowired
     private TransactionRepository dbRepo;
 
+    @Autowired
+    private UnhandledExceptionFault unhandledExceptionFault;
+
     private String localRoutingNum;
     private String version;
 
@@ -148,6 +151,8 @@ public final class BalanceReaderController {
     public ResponseEntity<?> getBalance(
         @RequestHeader("Authorization") String bearerToken,
         @PathVariable String accountId) {
+
+        unhandledExceptionFault.maybeThrow();
 
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             bearerToken = bearerToken.split("Bearer ")[1];
