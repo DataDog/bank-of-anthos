@@ -61,6 +61,9 @@ public final class LedgerWriterController {
     @Autowired
     private LatencyFault latencyFault;
 
+    @Autowired
+    private LogFloodFault logFloodFault;
+
     private String localRoutingNum;
     private String balancesApiUri;
     private String version;
@@ -138,6 +141,7 @@ public final class LedgerWriterController {
             @RequestHeader("Authorization") String bearerToken,
             @RequestBody Transaction transaction) {
         latencyFault.apply();
+        logFloodFault.apply();
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             bearerToken = bearerToken.split("Bearer ")[1];
         }

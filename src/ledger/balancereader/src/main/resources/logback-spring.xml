@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <pattern>
+                    <pattern>
+                        {
+                            "timestamp": "%date{yyyy-MM-dd HH:mm:ss}",
+                            "message": "%M | %msg",
+                            "severity": "%level",
+                            "dd.trace_id": "%mdc{dd.trace_id}",
+                            "dd.span_id": "%mdc{dd.span_id}",
+                            "dd.service": "%mdc{dd.service}",
+                            "dd.env": "%mdc{dd.env}",
+                            "dd.version": "%mdc{dd.version}"
+                        }
+                    </pattern>
+                </pattern>
+                <stackTrace>
+                    <fieldName>stack_trace</fieldName>
+                </stackTrace>
+            </providers>
+        </encoder>
+    </appender>
+
+    <logger name="org.hibernate" level="WARN" additivity="false">
+        <appender-ref ref="console"/>
+    </logger>
+
+    <root level="${LOG_LEVEL:-INFO}">
+        <appender-ref ref="console"/>
+    </root>
+</configuration>
