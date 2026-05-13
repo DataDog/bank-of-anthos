@@ -172,14 +172,14 @@ Python (Docker build + push):
 # Authenticate to ECR Public first (only needed once per session)
 aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
 
-docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-frontend:v0.6.9-dd.1 src/frontend/
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-frontend:v0.6.9-dd.1 --platform linux/amd64 src/frontend/
 docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-frontend:v0.6.9-dd.1
 
-docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-contacts:v0.6.9-dd.1 src/accounts/contacts/
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-contacts:v0.6.9-dd.1 --platform linux/amd64 src/accounts/contacts/
 docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-contacts:v0.6.9-dd.1
 
-docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-userservice:v0.6.9-dd.1 src/accounts/userservice/
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-userservice:v0.6.9-dd.1 --platform linux/amd64 src/accounts/userservice/
 docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-userservice:v0.6.9-dd.1
 
-docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1 src/loadgenerator/
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1 --platform linux/amd64 src/loadgenerator/
 docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1
