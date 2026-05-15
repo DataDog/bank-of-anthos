@@ -497,7 +497,7 @@ def create_app():
             app.logger.info('Successfully logged in.')
             if track_user_sdk is not None:
                 track_user_sdk.track_login_success(
-                    claims['user'],
+                    username,
                     user_id=claims['user'],
                     metadata={
                         "name": claims['name'],
@@ -507,11 +507,18 @@ def create_app():
             return resp
         except (RequestException, HTTPError) as err:
             app.logger.error('Error logging in: %s', str(err))
-        if track_user_sdk is not None:
-            track_user_sdk.track_login_failure(
-                username,
-                False,
-            )
+            if track_user_sdk is not None:
+                status_code = err.response.status_code if err.response is not None else None
+                if status_code == 401:
+                    track_user_sdk.track_login_failure(
+                        username,
+                        True,
+                    )
+                elif status_code == 404:
+                    track_user_sdk.track_login_failure(
+                        username,
+                        False,
+                    )
         return redirect(url_for('login',
                                 msg='Login Failed',
                                 _external=True,
