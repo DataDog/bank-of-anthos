@@ -30,6 +30,7 @@ If you are using Bank of Anthos, please ★Star this repository to show your int
 | [ledger-writer](/src/ledger/ledgerwriter)              | Java          | Accepts and validates incoming transactions before writing them to the ledger.                                                               |
 | [balance-reader](/src/ledger/balancereader)            | Java          | Provides efficient readable cache of user balances, as read from `ledger-db`.                                                                |
 | [transaction-history](/src/ledger/transactionhistory)  | Java          | Provides efficient readable cache of past transactions, as read from `ledger-db`.                                                            |
+| [transaction-audit](/src/ledger/transactionaudit)      | Java          | Periodic compliance audit task for ledger transactions. Used in Datadog Cloud Workload Security demos to simulate a compromised container.   |
 | [ledger-db](/src/ledger/ledger-db)                     | PostgreSQL    | Ledger of all transactions. Option to pre-populate with transactions for demo users.                                                         |
 | [user-service](/src/accounts/userservice)              | Python        | Manages user accounts and authentication. Signs JWTs used for authentication by other services.                                              |
 | [contacts](/src/accounts/contacts)                     | Python        | Stores list of other accounts associated with a user. Used for drop down in "Send Payment" and "Deposit" forms.                              |
@@ -155,20 +156,28 @@ Several services include injectable faults to demonstrate Datadog observability 
 
 
 ## Rebuild to Public ECR
+
+```
 #Java (JIB — builds and pushes in one step):
 
 cd src/ledger/balancereader
-mvn jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-balancereader:v0.6.9-dd.1
+mvn compile jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-balancereader:v0.6.9-dd.1
 
 cd ../ledgerwriter
-mvn jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-ledgerwriter:v0.6.9-dd.1
+mvn compile jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-ledgerwriter:v0.6.9-dd.1
 
 cd ../transactionhistory
-mvn jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-transactionhistory:v0.6.9-dd.1
+mvn compile jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-transactionhistory:v0.6.9-dd.1
+
+cd ../transactionaudit
+mvn compile jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-transactionaudit:v0.6.9-dd.1
 cd ../../..
+```
+
+
 Python (Docker build + push):
 
-
+```
 # Authenticate to ECR Public first (only needed once per session)
 aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
 
@@ -183,3 +192,4 @@ docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-userservice:v0.6.9-dd.1
 
 docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1 --platform linux/amd64 src/loadgenerator/
 docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1
+```

@@ -38,6 +38,7 @@ from opentelemetry.propagators.cloud_trace_propagator import CloudTraceFormatPro
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 
 from db import UserDb
+from latency_fault import LatencyFault
 
 def create_app():
     """Flask application factory to create instances
@@ -171,6 +172,7 @@ def create_app():
         - username
         - password
         """
+        latency_fault.apply()
         app.logger.debug('Sanitizing login input.')
         username = bleach.clean(request.args.get('username'))
         password = bleach.clean(request.args.get('password'))
@@ -246,6 +248,8 @@ def create_app():
     except OperationalError:
         app.logger.critical("users_db database connection failed")
         sys.exit(1)
+
+    latency_fault = LatencyFault()
     return app
 
 

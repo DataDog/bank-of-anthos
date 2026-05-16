@@ -29,5 +29,8 @@ requires:
 - configs:
   - transactionhistory
   path: transactionhistory/skaffold.yaml
+- configs:
+  - transactionaudit
+  path: transactionaudit/skaffold.yaml
 deploy:
   tolerateFailuresUntilDeadline: true

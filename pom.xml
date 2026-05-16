@@ -29,6 +29,7 @@
         <module>src/ledger/ledgerwriter</module>
         <module>src/ledger/transactionhistory</module>
         <module>src/ledger/balancereader</module>
+        <module>src/ledger/transactionaudit</module>
         <module>src/ledgermonolith</module>
     </modules>
 

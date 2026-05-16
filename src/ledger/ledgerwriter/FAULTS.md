@@ -109,3 +109,56 @@ env:
 - **APM → Services → ledgerwriter**: at high `FAULT_LOG_FLOOD_COUNT`, p95/p99 latency on `POST /transactions` rises as synchronous log writes block the request thread.
 - **Usage / Billing**: ingested log volume and indexed log count for `ledgerwriter` climb, illustrating the cost impact of accidental verbose logging in production.
 - **Monitors / SLOs**: any log-volume anomaly monitor on `ledgerwriter` should trigger; latency-based SLOs may also burn budget at high counts.
+
+---
+
+## Error Fault
+
+Causes a configurable fraction of `POST /transactions` requests to fail with a `500 Internal Server Error` carrying a configurable message. Useful for simulating a partially-broken service: most requests still succeed, but a steady share return errors with a recognizable signature.
+
+### Environment Variables
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `FAULT_ERROR_ENABLED` | Yes (to activate) | `false` | Set to `"true"` to enable the error fault. |
+| `FAULT_ERROR_RATE` | No | `1.0` | Probability between `0.0` and `1.0` that a given request fails. Values outside that range are clamped. |
+| `FAULT_ERROR_MESSAGE` | No | `Simulated transaction processing error` | Message attached to the `ResponseStatusException`. Appears in the response body, logs, and APM error tags. |
+
+### Behavior
+
+When enabled, each incoming `POST /transactions` request is independently sampled against `FAULT_ERROR_RATE`. Sampled requests throw a Spring `ResponseStatusException(500, message)` before authentication, validation, or persistence runs, producing a clean `500 Internal Server Error` response with the configured message. Unsampled requests proceed normally. The check is per-request and not sticky — a given client may see a mix of successes and failures.
+
+Because the exception is a `ResponseStatusException`, Spring's default error mapping produces the response without a full stack trace at `ERROR` level — the signature of a service intentionally returning an error, in contrast to the [Balance Reader Unhandled Exception Fault](../balancereader/FAULTS.md) which surfaces as an uncaught `RuntimeException`.
+
+The `/ready` and `/version` endpoints are unaffected, so Kubernetes readiness probes continue to pass while the fault is active.
+
+### Example: every transaction fails
+
+```yaml
+env:
+  - name: FAULT_ERROR_ENABLED
+    value: "true"
+  - name: FAULT_ERROR_MESSAGE
+    value: "ledger temporarily unavailable"
+```
+
+### Example: 10% of transactions fail
+
+```yaml
+env:
+  - name: FAULT_ERROR_ENABLED
+    value: "true"
+  - name: FAULT_ERROR_RATE
+    value: "0.1"
+  - name: FAULT_ERROR_MESSAGE
+    value: "downstream account service rejected request"
+```
+
+### What to observe in Datadog
+
+- **APM → Services → ledgerwriter**: error rate on `POST /transactions` climbs to roughly `FAULT_ERROR_RATE`; affected spans are flagged as errors with the configured message attached.
+- **APM → Error Tracking**: a new issue groups the failures by message; the top frame is in `ErrorFault.apply`.
+- **Logs → Service: ledgerwriter**: error responses appear without a deep stack trace — the distinguishing signal vs. an unhandled-exception fault.
+- **RUM → Sessions / Resources**: frontend payment / transfer flows show failed `POST /transactions` resources and degraded session quality for users who hit failing requests.
+- **Dependent services**: `frontend` traces show the downstream `ledgerwriter` span flagged as an error, illustrating how a backend failure propagates upstream.
+- **Monitors / SLOs**: any error-rate SLO on `ledgerwriter` should burn budget proportional to `FAULT_ERROR_RATE`.
