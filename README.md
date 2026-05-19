@@ -30,6 +30,7 @@ If you are using Bank of Anthos, please ★Star this repository to show your int
 | [ledger-writer](/src/ledger/ledgerwriter)              | Java          | Accepts and validates incoming transactions before writing them to the ledger.                                                               |
 | [balance-reader](/src/ledger/balancereader)            | Java          | Provides efficient readable cache of user balances, as read from `ledger-db`.                                                                |
 | [transaction-history](/src/ledger/transactionhistory)  | Java          | Provides efficient readable cache of past transactions, as read from `ledger-db`.                                                            |
+| [transaction-audit](/src/ledger/transactionaudit)      | Java          | Periodic compliance audit task for ledger transactions. Used in Datadog Cloud Workload Security demos to simulate a compromised container.   |
 | [ledger-db](/src/ledger/ledger-db)                     | PostgreSQL    | Ledger of all transactions. Option to pre-populate with transactions for demo users.                                                         |
 | [user-service](/src/accounts/userservice)              | Python        | Manages user accounts and authentication. Signs JWTs used for authentication by other services.                                              |
 | [contacts](/src/accounts/contacts)                     | Python        | Stores list of other accounts associated with a user. Used for drop down in "Send Payment" and "Deposit" forms.                              |
@@ -139,6 +140,10 @@ The following button opens up an interactive tutorial showing how to deploy Bank
 - [CI/CD pipeline](/docs/ci-cd-pipeline.md) to learn details about and how to set-up the CI/CD pipeline.
 - [Troubleshooting](/docs/troubleshooting.md) to learn how to resolve common problems.
 
+## Injectable Fault Docs
+
+Several services include injectable faults to demonstrate Datadog observability capabilities (high memory usage, latency, errors, etc.). Each service that supports faults documents them in a `FAULTS.md` file alongside its `README.md`. All faults are disabled by default and activated via environment variables.
+
 ## Demos featuring Bank of Anthos
 - [Tutorial: Explore Anthos (Google Cloud docs)](https://cloud.google.com/anthos/docs/tutorials/explore-anthos)
 - [Tutorial: Migrating a monolith VM to GKE](https://cloud.google.com/migrate/containers/docs/migrating-monolith-vm-overview-setup)
@@ -151,31 +156,40 @@ The following button opens up an interactive tutorial showing how to deploy Bank
 
 
 ## Rebuild to Public ECR
+
+```
 #Java (JIB — builds and pushes in one step):
 
 cd src/ledger/balancereader
-mvn jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-balancereader:v0.6.9-dd.1
+mvn compile jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-balancereader:v0.6.9-dd.1
 
 cd ../ledgerwriter
-mvn jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-ledgerwriter:v0.6.9-dd.1
+mvn compile jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-ledgerwriter:v0.6.9-dd.1
 
 cd ../transactionhistory
-mvn jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-transactionhistory:v0.6.9-dd.1
+mvn compile jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-transactionhistory:v0.6.9-dd.1
+
+cd ../transactionaudit
+mvn compile jib:build -Dimage=public.ecr.aws/v6x4t1k2/bank-of-anthos-transactionaudit:v0.6.9-dd.1
 cd ../../..
+```
+
+
 Python (Docker build + push):
 
-
+```
 # Authenticate to ECR Public first (only needed once per session)
 aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
 
-docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-frontend:v0.6.9-dd.1 src/frontend/
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-frontend:v0.6.9-dd.1 --platform linux/amd64 src/frontend/
 docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-frontend:v0.6.9-dd.1
 
-docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-contacts:v0.6.9-dd.1 src/accounts/contacts/
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-contacts:v0.6.9-dd.1 --platform linux/amd64 src/accounts/contacts/
 docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-contacts:v0.6.9-dd.1
 
-docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-userservice:v0.6.9-dd.1 src/accounts/userservice/
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-userservice:v0.6.9-dd.1 --platform linux/amd64 src/accounts/userservice/
 docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-userservice:v0.6.9-dd.1
 
-docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1 src/loadgenerator/
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1 --platform linux/amd64 src/loadgenerator/
 docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-loadgenerator:v0.6.9-dd.1
+```

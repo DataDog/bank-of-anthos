@@ -48,6 +48,9 @@ public final class BalanceReaderController {
     @Autowired
     private TransactionRepository dbRepo;
 
+    @Autowired
+    private UnhandledExceptionFault unhandledExceptionFault;
+
     private String localRoutingNum;
     private String version;
 
@@ -149,6 +152,8 @@ public final class BalanceReaderController {
         @RequestHeader("Authorization") String bearerToken,
         @PathVariable String accountId) {
 
+        unhandledExceptionFault.maybeThrow();
+
         if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
             bearerToken = bearerToken.split("Bearer ")[1];
         }
@@ -162,6 +167,7 @@ public final class BalanceReaderController {
                     HttpStatus.UNAUTHORIZED);
             }
             // Load from cache
+            LOGGER.info("Reading balance for account: " + accountId);
             Long balance = cache.get(accountId);
             return new ResponseEntity<Long>(balance, HttpStatus.OK);
         } catch (JWTVerificationException e) {

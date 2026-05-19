@@ -211,3 +211,5 @@ venv-*
 
 # go for ci
 go/
+
+publickey

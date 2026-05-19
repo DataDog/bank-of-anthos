@@ -29,7 +29,12 @@ import requests
 from requests.exceptions import HTTPError, RequestException
 import jwt
 from flask import Flask, abort, jsonify, make_response, redirect, \
-    render_template, request, url_for
+    render_template, request, send_file, url_for
+
+try:
+    from ddtrace.appsec import track_user_sdk
+except ImportError:
+    track_user_sdk = None
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -261,6 +266,28 @@ def create_app():
                                 msg='Payment failed',
                                 _external=True,
                                 _scheme=app.config['SCHEME']))
+                            
+    @app.route('/transactions/search', methods=['GET'])
+    def search_transactions():
+        """Proxy a transaction search to transactionhistory."""
+        token = request.cookies.get(app.config['TOKEN_NAME'])
+        if not verify_token(token):
+            return abort(401)
+        account_id = decode_token(token)['acct']
+        counterparty = request.args.get('counterparty', default='')
+        try:
+            resp = requests.get(
+                url=f'{app.config["HISTORY_URI"]}/{account_id}/search',
+                params={'counterparty': counterparty},
+                headers={'Authorization': f'Bearer {token}'},
+                timeout=app.config['BACKEND_TIMEOUT'],
+            )
+        except requests.exceptions.RequestException as err:
+            app.logger.error('Error searching transactions: %s', str(err))
+            return abort(502)
+        return resp.content, resp.status_code, {
+            'Content-Type': resp.headers.get('Content-Type', 'application/json'),
+        }
 
     @app.route('/deposit', methods=['POST'])
     def deposit():
@@ -468,9 +495,30 @@ def create_app():
                                                       _scheme=app.config['SCHEME'])))
             resp.set_cookie(app.config['TOKEN_NAME'], token, max_age=max_age)
             app.logger.info('Successfully logged in.')
+            if track_user_sdk is not None:
+                track_user_sdk.track_login_success(
+                    username,
+                    user_id=claims['user'],
+                    metadata={
+                        "name": claims['name'],
+                        "acct_id": claims['acct']
+                    }
+                )
             return resp
         except (RequestException, HTTPError) as err:
             app.logger.error('Error logging in: %s', str(err))
+            if track_user_sdk is not None:
+                status_code = err.response.status_code if err.response is not None else None
+                if status_code == 401:
+                    track_user_sdk.track_login_failure(
+                        username,
+                        True,
+                    )
+                elif status_code == 404:
+                    track_user_sdk.track_login_failure(
+                        username,
+                        False,
+                    )
         return redirect(url_for('login',
                                 msg='Login Failed',
                                 _external=True,
@@ -590,6 +638,12 @@ def create_app():
             if resp.status_code == 201:
                 # user created. Attempt login
                 app.logger.info('New user created.')
+                if track_user_sdk is not None:
+                    track_user_sdk.track_signup(
+                        request.form['username'],
+                        user_id=request.form['username'],
+                        success=True
+                    )
                 return _login_helper(request.form['username'],
                                      request.form['password'],
                                      request.args)
@@ -626,15 +680,31 @@ def create_app():
         if token is None:
             return False
         try:
-            jwt.decode(algorithms='RS256',
+            payload = jwt.decode(algorithms='RS256',
                        jwt=token,
                        key=app.config['PUBLIC_KEY'],
                        options={"verify_signature": True})
             app.logger.debug('Token verified.')
+            tag_user(payload['user'], payload['name'], payload['acct'])
             return True
         except jwt.exceptions.InvalidTokenError as err:
             app.logger.error('Error validating token: %s', str(err))
             return False
+    
+    def tag_user(username, name, account_id):
+        """Tag the active Datadog span with usr.id so AAP can attribute / block."""
+        if track_user_sdk is None or not username:
+            return
+        try:
+            track_user_sdk.track_user_id(
+                username,
+                metadata={
+                    "name": name,
+                    "acct_id": account_id
+                },
+            )
+        except Exception:  # pylint: disable=broad-except
+            logging.error(f"Error tagging user {username}: {traceback.format_exc()}")
 
     # register html template formatters
     def format_timestamp_day(timestamp):

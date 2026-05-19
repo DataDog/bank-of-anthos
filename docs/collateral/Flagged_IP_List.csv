@@ -1,0 +1,7 @@
+ip_address,additional_data,category,intention,source
+101.36.104.242,,botnet_proxy,suspicious,"{""name"":""internal_security_team"", ""url"":""https://wiki.datadog.internal""}"
+2.57.121.25,,botnet_proxy,suspicious,"{""name"":""internal_security_team"", ""url"":""https://wiki.datadog.internal""}"
+2.57.121.112,,botnet_proxy,suspicious,"{""name"":""internal_security_team"", ""url"":""https://wiki.datadog.internal""}"
+45.148.10.121,,botnet_proxy,suspicious,"{""name"":""internal_security_team"", ""url"":""https://wiki.datadog.internal""}"
+61.245.11.87,,botnet_proxy,suspicious,"{""name"":""internal_security_team"", ""url"":""https://wiki.datadog.internal""}"
+80.94.92.166,,malware,malicious,"{""name"":""internal_security_team"", ""url"":""https://wiki.datadog.internal""}"

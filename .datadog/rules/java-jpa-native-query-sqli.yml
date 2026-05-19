@@ -1,0 +1,144 @@
+rule_id: java-jpa-native-query-sqli
+short_description: SQL injection via JPA EntityManager.createNativeQuery
+description: |
+  Flags calls to `EntityManager.createNativeQuery` (or `createQuery`) whose
+  SQL argument is built via string concatenation, either inline at the call
+  site or through a local variable. Concatenating untrusted input into a SQL
+  string allows attackers to alter query semantics. Use positional (`?1`) or
+  named (`:name`) parameters and bind values with `setParameter` instead.
+language: java
+severity: error
+category: security
+cwe: 89
+
+tree_sitter_query: |
+  (method_invocation
+    name: (identifier) @method
+    arguments: (argument_list) @args) @call
+
+code: |
+  function visit(query, filename, code) {
+    const method = query.captures["method"];
+    if (!method) return;
+
+    const methodName = method.text;
+    if (methodName !== "createNativeQuery" && methodName !== "createQuery") {
+      return;
+    }
+
+    const args = query.captures["args"];
+    const call = query.captures["call"];
+    if (!args || !call) return;
+
+    // Inspect the first argument to the createNativeQuery call.
+    const firstArg = args.children.find(c => c.type !== "(" && c.type !== ",");
+    if (!firstArg) return;
+
+    // Direct concatenation at the call site:
+    //   em.createNativeQuery("SELECT ... " + accountId)
+    if (firstArg.type === "binary_expression") {
+      addError(buildError(
+        call.start.line, call.start.col,
+        call.end.line, call.end.col,
+        "Potential SQL injection: " + methodName + " called with a concatenated string. " +
+        "Use parameterized queries with setParameter().",
+        "ERROR"
+      ));
+      return;
+    }
+
+    // Indirect: argument is a local variable assigned from concatenation.
+    //   String sql = "SELECT ..." + accountId;
+    //   em.createNativeQuery(sql);
+    if (firstArg.type === "identifier") {
+      const varName = firstArg.text;
+      // Walk the enclosing method body looking for a local declaration of
+      // `varName` whose initializer is a binary_expression with `+`.
+      const method = enclosingMethod(call);
+      if (!method) return;
+
+      const decl = findLocalDeclaration(method, varName);
+      if (decl && declHasConcatInit(decl)) {
+        addError(buildError(
+          call.start.line, call.start.col,
+          call.end.line, call.end.col,
+          "Potential SQL injection: " + methodName + " called with variable `" +
+          varName + "` that is built via string concatenation. " +
+          "Use parameterized queries with setParameter().",
+          "ERROR"
+        ));
+      }
+    }
+  }
+
+  function enclosingMethod(node) {
+    let n = node.parent;
+    while (n && n.type !== "method_declaration" && n.type !== "constructor_declaration") {
+      n = n.parent;
+    }
+    return n;
+  }
+
+  function findLocalDeclaration(scope, varName) {
+    // DFS over scope looking for `local_variable_declaration` declaring varName.
+    const stack = [scope];
+    while (stack.length) {
+      const n = stack.pop();
+      if (n.type === "local_variable_declaration") {
+        for (const child of n.children) {
+          if (child.type === "variable_declarator") {
+            const nameNode = child.children.find(c => c.type === "identifier");
+            if (nameNode && nameNode.text === varName) {
+              return child;
+            }
+          }
+        }
+      }
+      for (const child of (n.children || [])) {
+        stack.push(child);
+      }
+    }
+    return null;
+  }
+
+  function declHasConcatInit(declarator) {
+    // variable_declarator: identifier "=" <init>
+    const init = declarator.children[declarator.children.length - 1];
+    return init && init.type === "binary_expression";
+  }
+
+tests:
+  - name: flags inline concatenated argument
+    code: |
+      import jakarta.persistence.EntityManager;
+      class Repo {
+        EntityManager em;
+        void search(String id) {
+          em.createNativeQuery("SELECT * FROM t WHERE a = '" + id + "'");
+        }
+      }
+    expected_violations: 1
+
+  - name: flags concatenation via local variable
+    code: |
+      import jakarta.persistence.EntityManager;
+      class Repo {
+        EntityManager em;
+        void search(String id) {
+          String sql = "SELECT * FROM t WHERE a = '" + id + "'";
+          em.createNativeQuery(sql).getResultList();
+        }
+      }
+    expected_violations: 1
+
+  - name: ignores parameterized query
+    code: |
+      import jakarta.persistence.EntityManager;
+      class Repo {
+        EntityManager em;
+        void search(String id) {
+          em.createNativeQuery("SELECT * FROM t WHERE a = ?1")
+            .setParameter(1, id);
+        }
+      }
+    expected_violations: 0

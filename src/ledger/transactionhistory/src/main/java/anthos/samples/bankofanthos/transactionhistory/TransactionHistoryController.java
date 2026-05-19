@@ -21,10 +21,14 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
+import datadog.trace.api.interceptor.MutableSpan;
 import io.micrometer.core.instrument.binder.cache.GuavaCacheMetrics;
+import io.opentracing.Span;
+import io.opentracing.util.GlobalTracer;
 import io.micrometer.stackdriver.StackdriverMeterRegistry;
 import java.util.Collection;
 import java.util.Deque;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,6 +39,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -51,6 +56,9 @@ public final class TransactionHistoryController {
 
     @Autowired
     private TransactionRepository dbRepo;
+
+    @Autowired
+    private TransactionSearchService searchService;
 
     @Value("${EXTRA_LATENCY_MILLIS:#{null}}")
     private Integer extraLatencyMillis;
@@ -205,6 +213,45 @@ public final class TransactionHistoryController {
             LOGGER.error("Cache error");
             return new ResponseEntity<>("cache error",
                                               HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+    /**
+     * Search this account's transactions for any involving a counterparty.
+     *
+     * @param bearerToken   HTTP request 'Authorization' header
+     * @param accountId     the authenticated user's account
+     * @param counterparty  the other account to match against
+     */
+    @GetMapping("/transactions/{accountId}/search")
+    public ResponseEntity<?> searchTransactions(
+            @RequestHeader("Authorization") String bearerToken,
+            @PathVariable String accountId,
+            @RequestParam("counterparty") String counterparty) {
+
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            bearerToken = bearerToken.split("Bearer ")[1];
+        }
+        try {
+            DecodedJWT jwt = verifier.verify(bearerToken);
+            if (!accountId.equals(jwt.getClaim("acct").asString())) {
+                return new ResponseEntity<>("not authorized",
+                                                  HttpStatus.UNAUTHORIZED);
+            }
+            tagUser(jwt.getClaim("user").asString());
+            List<?> results = searchService.searchByCounterparty(
+                    accountId, counterparty);
+            return new ResponseEntity<>(results, HttpStatus.OK);
+        } catch (JWTVerificationException e) {
+            return new ResponseEntity<>("not authorized",
+                                              HttpStatus.UNAUTHORIZED);
+        }
+    }
+
+    private void tagUser(String username) {
+        Span span = GlobalTracer.get().activeSpan();
+        if (span instanceof MutableSpan) {
+            ((MutableSpan) span).setTag("usr.id", username);
         }
     }
 }
