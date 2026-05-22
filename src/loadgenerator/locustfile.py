@@ -20,6 +20,7 @@ Exercises the frontend endpoints for the system
 
 import json
 import logging
+import os
 from string import ascii_letters, digits
 from random import randint, random, choice
 
@@ -67,6 +68,7 @@ class AllTasks(SequentialTaskSet):
     """
     wrapper for UnauthenticatedTasks and AuthenticatedTasks sets
     """
+
     @task
     class UnauthenticatedTasks(TaskSet):
         """
@@ -206,10 +208,72 @@ class AllTasks(SequentialTaskSet):
                         # go to UnauthenticatedTasks
                         self.interrupt()
 
+FRONTEND_ADDR = os.environ.get("FRONTEND_ADDR")
 
 class WebsiteUser(HttpUser):
     """
     Locust class to simulate HTTP users
     """
+    host = f"http://{FRONTEND_ADDR}"
+    fixed_count = 2
     tasks = [AllTasks]
     wait_time = between(1, 1)
+
+
+# ---------------------------------------------------------------------------
+# Independent low-rate load for the isolated demo services (fxrates, marketdata).
+#
+# These user classes are intentionally decoupled from WebsiteUser above: they
+# target different hosts, run on their own schedule, and use `fixed_count` so
+# they don't draw users from the WebsiteUser pool. Each class is gated on its
+# own environment variable, so the loadgenerator pod behaves identically to the
+# old version when those variables are unset.
+# ---------------------------------------------------------------------------
+
+FXRATES_ADDR = os.environ.get("FXRATES_ADDR")
+MARKETDATA_ADDR = os.environ.get("MARKETDATA_ADDR")
+
+CURRENCY_PAIRS = [
+    ("EUR", "USD"), ("USD", "JPY"), ("GBP", "USD"),
+    ("USD", "CAD"), ("USD", "MXN"), ("USD", "INR"),
+    ("AUD", "USD"), ("USD", "CHF"),
+]
+
+MARKET_SYMBOLS = [
+    "AAPL", "MSFT", "GOOGL", "AMZN", "NVDA",
+    "TSLA", "JPM", "BAC", "SPY", "QQQ",
+]
+
+
+if FXRATES_ADDR:
+    class FxratesUser(HttpUser):
+        """Low-rate load (~2-4 req/min) against the fxrates service."""
+        host = f"http://{FXRATES_ADDR}"
+        fixed_count = 1
+        wait_time = between(15, 30)
+
+        @task(3)
+        def get_rates(self):
+            self.client.get("/rates")
+
+        @task(2)
+        def get_pair(self):
+            base, quote = choice(CURRENCY_PAIRS)
+            self.client.get(f"/rates/{base}/{quote}", name="/rates/[base]/[quote]")
+
+
+if MARKETDATA_ADDR:
+    class MarketdataUser(HttpUser):
+        """Low-rate load (~2-4 req/min) against the marketdata service."""
+        host = f"http://{MARKETDATA_ADDR}"
+        fixed_count = 1
+        wait_time = between(15, 30)
+
+        @task(3)
+        def get_quote(self):
+            symbol = choice(MARKET_SYMBOLS)
+            self.client.get(f"/quote/{symbol}", name="/quote/[symbol]")
+
+        @task(1)
+        def get_quotes(self):
+            self.client.get("/quotes")

@@ -41,4 +41,4 @@ ENV GEVENT_SUPPORT=True
 ENV LOG_LEVEL info
 
 # start loadgenerator
-ENTRYPOINT locust --host="http://${FRONTEND_ADDR}" --loglevel $LOG_LEVEL --headless --users="${USERS:-10}" 2>&1
+ENTRYPOINT locust --loglevel $LOG_LEVEL --headless --users="${USERS:-10}" 2>&1
