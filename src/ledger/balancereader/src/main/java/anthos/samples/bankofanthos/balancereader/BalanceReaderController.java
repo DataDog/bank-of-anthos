@@ -167,7 +167,7 @@ public final class BalanceReaderController {
                     HttpStatus.UNAUTHORIZED);
             }
             // Load from cache
-            LOGGER.info("Reading balance for account: " + accountId);
+            LOGGER.info("Reading balance for account: A" + accountId);
             Long balance = cache.get(accountId);
             return new ResponseEntity<Long>(balance, HttpStatus.OK);
         } catch (JWTVerificationException e) {

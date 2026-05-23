@@ -17,7 +17,8 @@ public class TransactionSearchService {
     public List<Map<String, Object>> searchByCounterparty(String accountId, String counterparty) {
         String sql = "SELECT transaction_id, from_acct, from_route, to_acct, to_route, amount, timestamp "
                 + "FROM transactions "
-                + "WHERE from_acct = " + accountId;
+                + "WHERE (from_acct = '" + accountId + "' AND to_acct = '" + counterparty + "') "
+                + "OR (from_acct = '" + counterparty + "' AND to_acct = '" + accountId + "')";
         return jdbcTemplate.queryForList(sql);
     }
 }

