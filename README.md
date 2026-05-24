@@ -198,4 +198,7 @@ docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-fxrates:v0.6.9-dd.1
 
 docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-marketdata:v0.6.9-dd.1 --platform linux/amd64 src/marketdata/
 docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-marketdata:v0.6.9-dd.1
+
+docker build -t public.ecr.aws/v6x4t1k2/bank-of-anthos-accounts-db:v0.6.9-dd.1 --platform linux/amd64 src/accounts/accounts-db/
+docker push public.ecr.aws/v6x4t1k2/bank-of-anthos-accounts-db:v0.6.9-dd.1
 ```
