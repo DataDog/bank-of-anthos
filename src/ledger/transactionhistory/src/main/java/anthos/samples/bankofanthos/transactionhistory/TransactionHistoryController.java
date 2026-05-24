@@ -248,6 +248,36 @@ public final class TransactionHistoryController {
         }
     }
 
+    /**
+     * Search this account's transactions.
+     *
+     * @param bearerToken   HTTP request 'Authorization' header
+     * @param accountId     the authenticated user's account
+     */
+    @GetMapping("/transactions/{accountId}/search")
+    public ResponseEntity<?> searchTransactions(
+            @RequestHeader("Authorization") String bearerToken,
+            @PathVariable String accountId) {
+
+        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
+            bearerToken = bearerToken.split("Bearer ")[1];
+        }
+        try {
+            DecodedJWT jwt = verifier.verify(bearerToken);
+            if (!accountId.equals(jwt.getClaim("acct").asString())) {
+                return new ResponseEntity<>("not authorized",
+                                                  HttpStatus.UNAUTHORIZED);
+            }
+            tagUser(jwt.getClaim("user").asString());
+            List<?> results = searchService.searchByAccountId(
+                    accountId);
+            return new ResponseEntity<>(results, HttpStatus.OK);
+        } catch (JWTVerificationException e) {
+            return new ResponseEntity<>("not authorized",
+                                              HttpStatus.UNAUTHORIZED);
+        }
+    }
+
     private void tagUser(String username) {
         Span span = GlobalTracer.get().activeSpan();
         if (span instanceof MutableSpan) {
