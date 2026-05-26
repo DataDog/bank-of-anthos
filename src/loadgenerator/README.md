@@ -31,9 +31,13 @@ Implemented in Python with Locust.
 - `FRONTEND_ADDR`
   - the address and port of the `frontend` service
 - `USERS`
-  - The number of concurrent users to simulate
+  - The number of concurrent users to simulate against `FRONTEND_ADDR`
 - `LOG_LEVEL`
   - The [logging level](https://docs.python.org/3/library/logging.html#levels) (default: INFO)
+- `FXRATES_ADDR` *(optional)*
+  - address and port of the `fxrates` service (e.g. `fxrates:8080`). When set, a single fixed-count Locust user generates ~2–4 req/min against that service, independent of the frontend load. Unset to disable.
+- `MARKETDATA_ADDR` *(optional)*
+  - address and port of the `marketdata` service (e.g. `marketdata:8080`). When set, a single fixed-count Locust user generates ~2–4 req/min against that service, independent of the frontend load. Unset to disable.
 
 ### Kubernetes Resources
 

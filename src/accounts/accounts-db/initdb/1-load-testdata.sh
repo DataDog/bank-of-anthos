@@ -65,6 +65,9 @@ create_accounts() {
   add_user "1033623433" "alice" "Alice"
   add_user "1055757655" "bob" "Bob"
   add_user "1077441377" "eve" "Eve"
+  add_user "1077441398" "loki" "Loki"
+  add_user "1077441399" "coyote" "Coyote"
+  add_user "1077441400" "reynard" "Reynard"
 
   # Make everyone contacts of each other
   add_contact "testuser" "Alice" "1033623433"
